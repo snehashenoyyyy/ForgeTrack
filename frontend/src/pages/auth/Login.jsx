@@ -106,7 +106,7 @@ export default function Login() {
                   <input 
                     type="email" 
                     placeholder="name@organization.com"
-                    className="input w-full pl-12 h-[52px]"
+                    className="input w-full pl-12 h-[52px] input-with-icon"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -126,7 +126,7 @@ export default function Login() {
                     <input 
                       type="password" 
                       placeholder="••••••••"
-                      className="input w-full pl-12 h-[52px]"
+                      className="input w-full pl-12 h-[52px] input-with-icon"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required={activeTab === 'mentor'}

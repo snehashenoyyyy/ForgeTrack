@@ -2,18 +2,31 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/auth/Login';
 import Dashboard from './pages/mentor/Dashboard';
+import StudentDashboard from './pages/student/StudentDashboard';
 import MarkAttendance from './pages/mentor/MarkAttendance';
 import History from './pages/mentor/History';
 import Materials from './pages/mentor/Materials';
+import AttendanceAppeals from './pages/student/AttendanceAppeals';
+import ReviewAppeals from './pages/mentor/ReviewAppeals';
 import Shell from './components/layout/Shell';
 
 function RoleGuard({ children }) {
-  const { user, loading } = useAuth();
+  const { user, loading, role } = useAuth();
   
   if (loading) return null; // Or a spinner
   if (!user) return <Navigate to="/login" replace />;
   
   return <Shell>{children}</Shell>;
+}
+
+function DashboardSwitcher() {
+  const { role } = useAuth();
+  return role === 'student' ? <StudentDashboard /> : <Dashboard />;
+}
+
+function AppealsSwitcher() {
+  const { role } = useAuth();
+  return role === 'student' ? <AttendanceAppeals /> : <ReviewAppeals />;
 }
 
 function App() {
@@ -24,11 +37,13 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           
-          {/* Protected Mentor Routes */}
-          <Route path="/dashboard" element={<RoleGuard><Dashboard /></RoleGuard>} />
+          {/* Protected Routes */}
+          <Route path="/dashboard" element={<RoleGuard><DashboardSwitcher /></RoleGuard>} />
+          
           <Route path="/attendance" element={<RoleGuard><MarkAttendance /></RoleGuard>} />
           <Route path="/history" element={<RoleGuard><History /></RoleGuard>} />
           <Route path="/materials" element={<RoleGuard><Materials /></RoleGuard>} />
+          <Route path="/appeals" element={<RoleGuard><AppealsSwitcher /></RoleGuard>} />
           
           {/* Default Redirect */}
           <Route path="*" element={<Navigate to="/dashboard" />} />

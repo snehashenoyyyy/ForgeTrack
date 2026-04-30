@@ -13,11 +13,61 @@ import { supabase } from '../../lib/supabase';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ students: 0, sessions: 0, attendance: 0 });
+  const [latestSession, setLatestSession] = useState(null);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [absentStudents, setAbsentStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStats();
+    fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    if (!supabase) return;
+    try {
+      // 1. Get latest session
+      const { data: sData } = await supabase
+        .from('sessions')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      setLatestSession(sData);
+
+      if (sData) {
+        // 2. Get absent students for this session
+        const { data: attData } = await supabase
+          .from('attendance')
+          .select('student_id, present, students(name)')
+          .eq('session_id', sData.id);
+        
+        const absent = attData?.filter(a => !a.present).map(a => a.students.name) || [];
+        setAbsentStudents(absent);
+      }
+
+      // 3. Get recent activity (Attendance + Materials)
+      const { data: recentAtt } = await supabase
+        .from('attendance')
+        .select('created_at, students(name), sessions(topic)')
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      const activities = (recentAtt || []).map(a => ({
+        action: `Attendance marked for ${a.students?.name} in ${a.sessions?.topic}`,
+        time: new Date(a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        icon: CheckSquare
+      }));
+
+      setRecentActivity(activities.length > 0 ? activities : [
+        { action: 'No recent activity found', time: 'Start by marking attendance', icon: Activity }
+      ]);
+
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchStats = async () => {
     if (!supabase) return;
@@ -92,7 +142,9 @@ export default function Dashboard() {
         <div className="flex items-center gap-3 shrink-0">
           <Calendar size={16} className="text-secondary" />
           <span className="text-caption text-tertiary uppercase tracking-wider">Last Session Date</span>
-          <span className="text-body-lg font-semibold tabular-nums ml-1">Nov 10, 2025</span>
+          <span className="text-body-lg font-semibold tabular-nums ml-1">
+            {latestSession ? new Date(latestSession.date).toLocaleDateString() : 'N/A'}
+          </span>
         </div>
       </motion.section>
 
@@ -105,14 +157,17 @@ export default function Dashboard() {
         >
           <div className="flex items-start justify-between mb-8 z-10">
             <div>
-              <p className="text-label text-tertiary mb-2">TODAY'S SESSION</p>
-              <h2 className="text-display-sm">Agentic Workflows</h2>
+              <p className="text-label text-tertiary mb-2">LATEST SESSION</p>
+              <h2 className="text-display-sm">{latestSession?.topic || 'No sessions yet'}</h2>
             </div>
-            <span className="pill pill-success">Online</span>
+            <span className="pill pill-success">Live</span>
           </div>
           
           <div className="mt-auto z-10">
-            <p className="text-body-sm text-secondary mb-4">Date: <span className="text-primary font-mono">11/04/2026</span> • Duration: 2.0h</p>
+            <p className="text-body-sm text-secondary mb-4">
+              Date: <span className="text-primary font-mono">{latestSession?.date || '...'}</span> • 
+              Duration: {latestSession?.duration_hours || '0'}h
+            </p>
             <Link to="/attendance" className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2 group">
               Mark Attendance
               <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
@@ -149,11 +204,11 @@ export default function Dashboard() {
           </div>
 
           <div>
-            <p className="text-caption text-secondary mb-3">ABSENT STUDENTS</p>
+            <p className="text-caption text-secondary mb-3 uppercase tracking-widest">ABSENT STUDENTS</p>
             <div className="flex flex-wrap gap-2">
-              {['Rahul K', 'Sneha Rao', 'Amitabh B'].map((student, i) => (
+              {absentStudents.length > 0 ? absentStudents.map((student, i) => (
                 <motion.span 
-                  key={student} 
+                  key={i} 
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.5 + (i * 0.1) }}
@@ -161,7 +216,9 @@ export default function Dashboard() {
                 >
                   {student}
                 </motion.span>
-              ))}
+              )) : (
+                <p className="text-caption text-tertiary italic">No absentees found for this session.</p>
+              )}
             </div>
           </div>
         </motion.div>
@@ -212,13 +269,9 @@ export default function Dashboard() {
         </motion.div>
 
         <motion.div whileHover={{ y: -2 }} className="card">
-          <p className="text-label text-tertiary mb-6">RECENT ACTIVITY</p>
+          <p className="text-label text-tertiary mb-6 uppercase tracking-widest">RECENT ACTIVITY</p>
           <div className="space-y-4">
-            {[
-              { action: 'Attendance marked for Agentic Workflows', time: '10 mins ago', icon: CheckSquare },
-              { action: 'CSV imported: month2_attendance.csv', time: '2 hours ago', icon: Upload },
-              { action: 'Material added: Slides - Intro to AI', time: '1 day ago', icon: BookOpen },
-            ].map((item, idx) => (
+            {recentActivity.map((item, idx) => (
               <motion.div 
                 key={idx} 
                 initial={{ x: -10, opacity: 0 }}

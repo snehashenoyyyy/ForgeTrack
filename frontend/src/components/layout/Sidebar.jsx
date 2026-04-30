@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, CheckSquare, History, BookOpen, Upload, Settings, LogOut, CodeSquare } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, History, BookOpen, Upload, Settings, LogOut, CodeSquare, MessageSquare } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
@@ -12,11 +12,22 @@ export default function Sidebar() {
     { label: 'Overview', items: [{ icon: LayoutDashboard, text: 'Dashboard', path: '/dashboard' }] },
     { label: 'Activity', items: [
       { icon: CheckSquare, text: 'Mark Attendance', path: '/attendance' },
-      { icon: History, text: 'Student History', path: '/history' },
+      { icon: History, text: 'Attendance History', path: '/history' },
+      { icon: MessageSquare, text: 'Review Appeals', path: '/appeals' },
       { icon: BookOpen, text: 'Materials', path: '/materials' }
     ]},
     { label: 'Data', items: [{ icon: Upload, text: 'Upload CSV', path: '/upload' }] },
   ];
+
+  const studentLinks = [
+    { label: 'Overview', items: [{ icon: LayoutDashboard, text: 'My Dashboard', path: '/dashboard' }] },
+    { label: 'Academic', items: [
+      { icon: BookOpen, text: 'My Materials', path: '/materials' },
+      { icon: MessageSquare, text: 'Attendance Appeals', path: '/appeals' }
+    ]},
+  ];
+
+  const links = role === 'student' ? studentLinks : mentorLinks;
 
   const userName = user?.name || user?.email?.split('@')[0] || 'User';
 
@@ -37,7 +48,7 @@ export default function Sidebar() {
       
       {/* ... nav remains same ... */}
       <nav className="flex-1 overflow-y-auto p-4 space-y-6">
-        {mentorLinks.map((section, idx) => (
+        {links.map((section, idx) => (
           <div key={idx}>
             <p className="text-label text-tertiary mb-3 px-2">{section.label}</p>
             <div className="space-y-1">

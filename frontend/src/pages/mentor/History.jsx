@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { useLocation } from 'react-router-dom';
+
 export default function History() {
   const [students, setStudents] = useState([]);
   const [sessionsCount, setSessionsCount] = useState(0);
@@ -14,10 +16,16 @@ export default function History() {
   const [studentHistory, setStudentHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  const location = useLocation();
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get('q');
+    if (q) setSearch(q);
+    
     fetchHistoryData();
-  }, []);
+  }, [location.search]);
 
   const fetchHistoryData = async () => {
     if (!supabase) return;
@@ -119,7 +127,7 @@ export default function History() {
             <input 
               type="text" 
               placeholder="Search USN or Name..." 
-              className="input pl-10 w-[260px]"
+              className="input w-[260px] input-with-icon"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

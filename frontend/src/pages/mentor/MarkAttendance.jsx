@@ -3,11 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, CheckCircle2, XCircle, AlertCircle, Save, CheckSquare, Square, ChevronRight, PlusCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function MarkAttendance() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [students, setStudents] = useState([]);
   const [session, setSession] = useState(null);
+  const [searchResults, setSearchResults] = useState([]);
   const [attendance, setAttendance] = useState({}); // student_id -> boolean
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -19,9 +21,43 @@ export default function MarkAttendance() {
   const [newDuration, setNewDuration] = useState('2.0');
   const [creationError, setCreationError] = useState(null);
 
+  const location = useLocation();
+  const navigate = useNavigate();
+
   useEffect(() => {
-    fetchInitialData();
-  }, [selectedDate]);
+    const params = new URLSearchParams(location.search);
+    const q = params.get('q');
+    const d = params.get('date');
+    
+    if (d) {
+      setSelectedDate(d);
+      setSearchResults([]); // Clear search list if a specific date is chosen
+    } else if (q) {
+      searchSessions(q);
+    } else {
+      fetchInitialData();
+    }
+  }, [selectedDate, location.search]);
+
+  const searchSessions = async (query) => {
+    if (!supabase) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .ilike('topic', `%${query}%`)
+        .order('date', { ascending: false });
+      
+      if (error) throw error;
+      setSearchResults(data);
+      setSession(null); // Clear active session to show search list
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchInitialData = async () => {
     if (!supabase) {
@@ -201,20 +237,48 @@ export default function MarkAttendance() {
             animate={{ opacity: 1 }}
             className="space-y-6"
           >
-            {!session ? (
+            {searchResults.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-h2">Search Results</h2>
+                  <button onClick={() => navigate('/attendance')} className="text-accent-glow text-body-sm hover:underline">Clear Search</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {searchResults.map((s) => (
+                    <div 
+                      key={s.id} 
+                      onClick={() => setSelectedDate(s.date)}
+                      className="card p-6 cursor-pointer hover:bg-surface-raised transition-all border border-subtle hover:border-accent-glow/50 group"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-label text-tertiary mb-1 uppercase tracking-widest">{s.date}</p>
+                          <h3 className="text-h3 group-hover:text-accent-glow transition-colors">{s.topic}</h3>
+                        </div>
+                        <ChevronRight className="text-tertiary" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : !session ? (
               <div className="p-20 text-center card border-dashed border-2 flex flex-col items-center">
                  <AlertCircle size={48} className="text-tertiary mb-4 opacity-20" />
                  <h2 className="text-h2 mb-2">No Session Selected</h2>
                  <p className="text-body text-secondary mb-6 max-w-md mx-auto">
-                    We couldn't find a session for {new Date(selectedDate).toLocaleDateString()}. Please create one to start marking attendance.
+                    {new URLSearchParams(location.search).get('q') 
+                      ? `We couldn't find any sessions matching "${new URLSearchParams(location.search).get('q')}"`
+                      : `We couldn't find a session for ${new Date(selectedDate).toLocaleDateString()}. Please create one to start marking attendance.`}
                  </p>
-                 <button 
-                  onClick={() => setShowConfirm(true)}
-                  className="btn-primary flex items-center gap-2"
-                 >
-                   <PlusCircle size={20} />
-                   Create New Session
-                 </button>
+                 {!new URLSearchParams(location.search).get('q') && (
+                   <button 
+                    onClick={() => setShowConfirm(true)}
+                    className="btn-primary flex items-center gap-2"
+                   >
+                     <PlusCircle size={20} />
+                     Create New Session
+                   </button>
+                 )}
               </div>
             ) : (
               <>

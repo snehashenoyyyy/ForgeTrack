@@ -132,6 +132,9 @@ body {
   font: 400 14px var(--font-body);
   height: 44px;
 }
+.input-with-icon {
+  padding-left: 44px !important;
+}
 .input:focus {
   border-color: var(--accent-glow);
   box-shadow: var(--shadow-focus);
