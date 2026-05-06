@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, ArrowUpRight, User, Calendar, CheckCircle2, XCircle, ChevronDown, Download, AlertCircle } from 'lucide-react';
+import { Search, Filter, ArrowUpRight, User, Calendar, CheckCircle2, XCircle, ChevronDown, Download, AlertCircle, ArrowUpDown, TrendingDown, Users, Percent } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +16,7 @@ export default function History() {
   const [studentHistory, setStudentHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: 'percentage', direction: 'desc' });
   
   const location = useLocation();
 
@@ -43,8 +44,7 @@ export default function History() {
         .select(`
           *,
           attendance(present)
-        `)
-        .eq('is_active', true);
+        `);
 
       if (sError) throw sError;
 
@@ -93,12 +93,48 @@ export default function History() {
     }
   };
 
-  const filteredStudents = students.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || 
-                          s.usn.toLowerCase().includes(search.toLowerCase());
-    const matchesBranch = branchFilter === 'all' || s.branch_code === branchFilter;
-    return matchesSearch && matchesBranch;
-  });
+  const filteredStudents = students
+    .filter(s => {
+      const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || 
+                            s.usn.toLowerCase().includes(search.toLowerCase());
+      const matchesBranch = branchFilter === 'all' || s.branch_code === branchFilter;
+      return matchesSearch && matchesBranch;
+    })
+    .sort((a, b) => {
+      if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+  const uniqueBranches = Array.from(new Set(students.map(s => s.branch_code))).sort();
+
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
+    }));
+  };
+
+  const downloadCSV = () => {
+    const headers = ['Name,USN,Branch,Attended,Total Sessions,Percentage'];
+    const rows = filteredStudents.map(s => 
+      `"${s.name}","${s.usn}","${s.branch_code}",${s.attended},${sessionsCount},${s.percentage}%`
+    );
+    const csvContent = "data:text/csv;charset=utf-8," + headers.concat(rows).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `attendance_report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Analytics Calculations
+  const avgAttendance = students.length > 0 
+    ? Math.round(students.reduce((acc, s) => acc + s.percentage, 0) / students.length) 
+    : 0;
+  const atRiskCount = students.filter(s => s.percentage < 75).length;
 
   const getStatusColor = (pct) => {
     if (pct >= 85) return 'text-success-fg bg-success-bg/10 border-success-border/30';
@@ -139,26 +175,91 @@ export default function History() {
               onChange={(e) => setBranchFilter(e.target.value)}
             >
               <option value="all">All Branches</option>
-              <option value="CS">CS</option>
-              <option value="AI">AI</option>
-              <option value="IS">IS</option>
+              {uniqueBranches.map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
             </select>
             <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-tertiary pointer-events-none" />
           </div>
-          <button className="btn-secondary h-11 px-4">
+          <button onClick={downloadCSV} className="btn-secondary h-11 px-4" title="Export CSV">
             <Download size={18} />
           </button>
         </div>
       </header>
 
+      {/* Analytics Stats */}
+      {!loading && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card p-6 flex items-center gap-4 border-accent-glow/20 bg-accent-glow/[0.02]"
+          >
+            <div className="p-3 rounded-xl bg-accent-glow/10 text-accent-glow">
+              <Percent size={24} />
+            </div>
+            <div>
+              <p className="text-label text-tertiary uppercase mb-1">Avg. Attendance</p>
+              <h3 className="text-h3">{avgAttendance}%</h3>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="card p-6 flex items-center gap-4 border-danger-border/20 bg-danger-bg/[0.02]"
+          >
+            <div className="p-3 rounded-xl bg-danger-bg/10 text-danger-fg">
+              <TrendingDown size={24} />
+            </div>
+            <div>
+              <p className="text-label text-tertiary uppercase mb-1">Students At Risk</p>
+              <h3 className="text-h3 text-danger-fg">{atRiskCount} <span className="text-body-sm font-normal text-secondary ml-1">below 75%</span></h3>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="card p-6 flex items-center gap-4 border-subtle"
+          >
+            <div className="p-3 rounded-xl bg-surface-inset text-tertiary">
+              <Users size={24} />
+            </div>
+            <div>
+              <p className="text-label text-tertiary uppercase mb-1">Cohort Strength</p>
+              <h3 className="text-h3">{students.length} <span className="text-body-sm font-normal text-secondary ml-1">Active Students</span></h3>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       <div className="card p-0 overflow-hidden border border-subtle">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-surface-raised/50 border-b border-subtle">
-              <th className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider">Student</th>
+              <th 
+                className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider cursor-pointer hover:text-primary transition-colors"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center gap-2">
+                  Student
+                  <ArrowUpDown size={14} className={cn("transition-opacity", sortConfig.key === 'name' ? 'opacity-100' : 'opacity-30')} />
+                </div>
+              </th>
               <th className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider">Branch</th>
               <th className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider text-center">Sessions</th>
-              <th className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider text-right">Attendance</th>
+              <th 
+                className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider text-right cursor-pointer hover:text-primary transition-colors"
+                onClick={() => handleSort('percentage')}
+              >
+                <div className="flex items-center justify-end gap-2">
+                  Attendance
+                  <ArrowUpDown size={14} className={cn("transition-opacity", sortConfig.key === 'percentage' ? 'opacity-100' : 'opacity-30')} />
+                </div>
+              </th>
               <th className="px-6 py-4"></th>
             </tr>
           </thead>
@@ -176,7 +277,16 @@ export default function History() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.03 }}
                 onClick={() => fetchStudentDetail(student)}
-                className="group hover:bg-surface-raised transition-colors cursor-pointer"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fetchStudentDetail(student);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label={`View details for ${student.name}`}
+                className="group hover:bg-surface-raised transition-colors cursor-pointer outline-none focus:bg-surface-raised"
               >
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">

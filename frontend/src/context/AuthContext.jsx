@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext({});
@@ -7,47 +7,104 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const loadingResolved = useRef(false);
+
+  // Ensures setLoading(false) only fires once, preventing flicker
+  const resolveLoading = () => {
+    if (!loadingResolved.current) {
+      loadingResolved.current = true;
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Check active session
+    // Guard: if supabase isn't configured, stop immediately
+    if (!supabase) {
+      resolveLoading();
+      return;
+    }
+
+    // 1. Check existing session on mount
     checkUser();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setUser(session.user);
-        // Default role for Supabase Auth users is mentor for this app
-        setRole('mentor');
-      } else {
-        // Check if there's a student session in localStorage
-        const student = localStorage.getItem('forge_student');
-        if (student) {
-          setUser(JSON.parse(student));
-          setRole('student');
-        } else {
-          setUser(null);
-          setRole(null);
+    // 2. Subscribe to future auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        try {
+          if (session) {
+            let profile = null;
+            try {
+              const { data } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+              profile = data;
+            } catch (_) { /* profile fetch failed, continue without it */ }
+
+            setUser({ ...session.user, profile });
+            setRole('mentor');
+          } else {
+            const studentStr = localStorage.getItem('forge_student');
+            if (studentStr) {
+              try {
+                setUser(JSON.parse(studentStr));
+                setRole('student');
+              } catch (_) {
+                localStorage.removeItem('forge_student');
+                setUser(null);
+                setRole(null);
+              }
+            } else {
+              setUser(null);
+              setRole(null);
+            }
+          }
+        } catch (err) {
+          console.error('onAuthStateChange error:', err);
+        } finally {
+          resolveLoading();
         }
       }
-      setLoading(false);
-    });
+    );
 
     return () => subscription.unsubscribe();
   }, []);
 
   const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      setUser(session.user);
-      setRole('mentor');
-    } else {
-      const student = localStorage.getItem('forge_student');
-      if (student) {
-        setUser(JSON.parse(student));
-        setRole('student');
+    try {
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session ?? null;
+
+      if (session) {
+        let profile = null;
+        try {
+          const { data: profileData } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          profile = profileData;
+        } catch (_) { /* profile fetch failed, continue without it */ }
+
+        setUser({ ...session.user, profile });
+        setRole('mentor');
+      } else {
+        const studentStr = localStorage.getItem('forge_student');
+        if (studentStr) {
+          try {
+            setUser(JSON.parse(studentStr));
+            setRole('student');
+          } catch (_) {
+            localStorage.removeItem('forge_student');
+          }
+        }
       }
+    } catch (err) {
+      console.error('checkUser error:', err);
+    } finally {
+      resolveLoading();
     }
-    setLoading(false);
   };
 
   const loginMentor = async (email, password) => {
@@ -57,15 +114,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginStudent = async (email) => {
-    // For students, we verify if they exist in the database
     const { data, error } = await supabase
       .from('students')
       .select('*')
       .eq('email', email)
       .single();
-    
+
     if (error || !data) throw new Error('Student not found with this email');
-    
+
     localStorage.setItem('forge_student', JSON.stringify(data));
     setUser(data);
     setRole('student');
@@ -73,7 +129,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    if (supabase) await supabase.auth.signOut();
     localStorage.removeItem('forge_student');
     setUser(null);
     setRole(null);

@@ -4,6 +4,8 @@ import { Calendar, CheckCircle2, XCircle, AlertCircle, Save, CheckSquare, Square
 import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { Search } from 'lucide-react';
 
 export default function MarkAttendance() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -16,13 +18,17 @@ export default function MarkAttendance() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isExisting, setIsExisting] = useState(false);
   const [error, setError] = useState(null);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   const [newTopic, setNewTopic] = useState('');
   const [newDuration, setNewDuration] = useState('2.0');
   const [creationError, setCreationError] = useState(null);
+  
+  const [studentSearch, setStudentSearch] = useState('');
 
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -69,7 +75,6 @@ export default function MarkAttendance() {
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .select('*')
-        .eq('is_active', true)
         .order('name');
       
       if (studentError) throw studentError;
@@ -112,7 +117,6 @@ export default function MarkAttendance() {
       setLoading(false);
     }
   };
-
   const handleCreateSession = async () => {
     if (!supabase || !newTopic) return;
     setSaving(true);
@@ -138,6 +142,11 @@ export default function MarkAttendance() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
   };
 
   const toggleAttendance = (studentId) => {
@@ -170,7 +179,7 @@ export default function MarkAttendance() {
         student_id: s.id,
         session_id: session.id,
         present: !!attendance[s.id],
-        marked_by: 'Nischay BK'
+        marked_by: user?.profile?.display_name || user?.email || 'Unknown Mentor'
       }));
 
       const { error } = await supabase
@@ -178,11 +187,11 @@ export default function MarkAttendance() {
         .upsert(records, { onConflict: 'student_id,session_id' });
 
       if (error) throw error;
-      alert('Attendance saved successfully!');
+      showToast('Attendance saved successfully!');
       setIsExisting(true);
     } catch (error) {
       console.error('Error saving attendance:', error);
-      alert('Failed to save attendance.');
+      showToast('Failed to save attendance.', 'error');
     } finally {
       setSaving(false);
     }
@@ -212,7 +221,6 @@ export default function MarkAttendance() {
             type="date" 
             value={selectedDate}
             max={new Date().toISOString().split('T')[0]}
-            min="2025-08-04"
             onChange={(e) => setSelectedDate(e.target.value)}
             className="bg-transparent border-none outline-none text-body font-mono text-primary px-2"
           />
@@ -247,7 +255,11 @@ export default function MarkAttendance() {
                   {searchResults.map((s) => (
                     <div 
                       key={s.id} 
-                      onClick={() => setSelectedDate(s.date)}
+                      onClick={() => {
+                        setSession(s);
+                        setSearchResults([]);
+                        setSelectedDate(s.date);
+                      }}
                       className="card p-6 cursor-pointer hover:bg-surface-raised transition-all border border-subtle hover:border-accent-glow/50 group"
                     >
                       <div className="flex justify-between items-start">
@@ -298,6 +310,19 @@ export default function MarkAttendance() {
                   </div>
                 </div>
 
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-tertiary group-focus-within:text-accent-glow transition-colors">
+                    <Search size={18} />
+                  </div>
+                  <input 
+                    type="text"
+                    placeholder="Filter students by name or USN..."
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                    className="w-full bg-surface border border-subtle rounded-xl py-4 pl-12 pr-4 text-body focus:border-accent-glow outline-none transition-all shadow-sm"
+                  />
+                </div>
+
                 <div className="card p-0 overflow-hidden border border-subtle">
                   <div className="max-h-[60vh] overflow-y-auto">
                     {students.length === 0 ? (
@@ -306,13 +331,27 @@ export default function MarkAttendance() {
                         <p className="text-body text-secondary">No students found in database.</p>
                       </div>
                     ) : (
-                      students.map((student, idx) => (
+                      students
+                        .filter(s => 
+                          s.name.toLowerCase().includes(studentSearch.toLowerCase()) || 
+                          s.usn.toLowerCase().includes(studentSearch.toLowerCase())
+                        )
+                        .map((student, idx) => (
                         <motion.div 
                           key={student.id}
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: idx * 0.01 }}
                           onClick={() => toggleAttendance(student.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === ' ' || e.key === 'Enter') {
+                              e.preventDefault();
+                              toggleAttendance(student.id);
+                            }
+                          }}
+                          tabIndex={0}
+                          role="checkbox"
+                          aria-checked={attendance[student.id]}
                           className={cn(
                             "flex items-center justify-between p-4 cursor-pointer hover:bg-surface-raised transition-colors border-b border-subtle last:border-b-0",
                             attendance[student.id] ? "bg-success-bg/5" : "bg-transparent"
@@ -478,6 +517,26 @@ export default function MarkAttendance() {
               )}
             </div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast.show && (
+          <motion.div
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 20, opacity: 0 }}
+            className={cn(
+              "fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl border",
+              toast.type === 'success' 
+                ? "bg-success-bg/90 border-success-border text-success-fg" 
+                : "bg-danger-bg/90 border-danger-border text-danger-fg"
+            )}
+          >
+            {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+            <span className="font-medium">{toast.message}</span>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

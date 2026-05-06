@@ -3,20 +3,25 @@ import { Users, Calendar, Activity, TrendingUp, TrendingDown, ArrowRight, CheckS
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
+import { cn } from '../../lib/utils';
 
 const MOCK_SPARKLINE = [
   { value: 65 }, { value: 70 }, { value: 68 }, { value: 75 }, 
   { value: 82 }, { value: 85 }, { value: 88 }, { value: 92 },
 ];
 
-import { supabase } from '../../lib/supabase';
-
 export default function Dashboard() {
   const [stats, setStats] = useState({ students: 0, sessions: 0, attendance: 0 });
   const [latestSession, setLatestSession] = useState(null);
+  const [sessionMetrics, setSessionMetrics] = useState({ present: 0, total: 0, percentage: 0 });
   const [recentActivity, setRecentActivity] = useState([]);
   const [absentStudents, setAbsentStudents] = useState([]);
+  const [trendData, setTrendData] = useState([]);
+  const [performers, setPerformers] = useState({ highest: null, lowest: null });
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchStats();
@@ -37,32 +42,103 @@ export default function Dashboard() {
       setLatestSession(sData);
 
       if (sData) {
-        // 2. Get absent students for this session
+        // 2. Get metrics for this session
         const { data: attData } = await supabase
           .from('attendance')
           .select('student_id, present, students(name)')
           .eq('session_id', sData.id);
         
-        const absent = attData?.filter(a => !a.present).map(a => a.students.name) || [];
+        const present = attData?.filter(a => a.present).length || 0;
+        const total = attData?.length || 0;
+        setSessionMetrics({
+          present,
+          total,
+          percentage: total > 0 ? Math.round((present / total) * 100) : 0
+        });
+
+        const absent = attData?.filter(a => !a.present).map(a => a.students?.name).filter(Boolean) || [];
         setAbsentStudents(absent);
       }
 
-      // 3. Get recent activity (Attendance + Materials)
-      const { data: recentAtt } = await supabase
-        .from('attendance')
-        .select('created_at, students(name), sessions(topic)')
-        .order('created_at', { ascending: false })
-        .limit(3);
+      // 3. Get trend data (last 7 sessions)
+      const { data: trendSessions } = await supabase
+        .from('sessions')
+        .select('id, date, attendance(present)')
+        .order('date', { ascending: false })
+        .limit(7);
 
-      const activities = (recentAtt || []).map(a => ({
-        action: `Attendance marked for ${a.students?.name} in ${a.sessions?.topic}`,
-        time: new Date(a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        icon: CheckSquare
+      if (trendSessions) {
+        const processedTrend = [...trendSessions].reverse().map(s => {
+          const total = s.attendance?.length || 0;
+          const present = s.attendance?.filter(a => a.present).length || 0;
+          return {
+            date: s.date,
+            value: total > 0 ? Math.round((present / total) * 100) : 0
+          };
+        });
+        setTrendData(processedTrend);
+      }
+
+      // 4. Get recent activity (Attendance + Materials + Appeals)
+      const [
+        { data: recentAtt },
+        { data: recentMat },
+        { data: recentApp }
+      ] = await Promise.all([
+        supabase.from('attendance').select('marked_at, students(name), sessions(topic)').order('marked_at', { ascending: false }).limit(3),
+        supabase.from('materials').select('created_at, title').order('created_at', { ascending: false }).limit(2),
+        supabase.from('attendance_appeals').select('submitted_at, students(name)').order('submitted_at', { ascending: false }).limit(2)
+      ]);
+
+      const activities = [
+        ...(recentAtt || []).map(a => ({
+          action: `Attendance marked for ${a.students?.name}`,
+          detail: a.sessions?.topic,
+          time: new Date(a.marked_at),
+          icon: CheckSquare
+        })),
+        ...(recentMat || []).map(m => ({
+          action: `New material: ${m.title}`,
+          detail: 'Study material uploaded',
+          time: new Date(m.created_at),
+          icon: BookOpen
+        })),
+        ...(recentApp || []).map(ap => ({
+          action: `Appeal from ${ap.students?.name}`,
+          detail: 'Attendance appeal submitted',
+          time: new Date(ap.submitted_at),
+          icon: Upload
+        }))
+      ].sort((a, b) => b.time - a.time).slice(0, 5).map(act => ({
+        ...act,
+        timeStr: act.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }));
 
       setRecentActivity(activities.length > 0 ? activities : [
-        { action: 'No recent activity found', time: 'Start by marking attendance', icon: Activity }
+        { action: 'No recent activity found', timeStr: 'Start by marking attendance', icon: Activity }
       ]);
+
+      // 5. Calculate performers
+      const { data: studentStats } = await supabase
+        .from('students')
+        .select('name, attendance(present)');
+
+      if (studentStats && studentStats.length > 0) {
+        const studentPercentages = studentStats.map(s => {
+          const total = s.attendance?.length || 0;
+          const present = s.attendance?.filter(a => a.present).length || 0;
+          return {
+            name: s.name,
+            pct: total > 0 ? Math.round((present / total) * 100) : 0
+          };
+        });
+
+        const sorted = [...studentPercentages].sort((a, b) => b.pct - a.pct);
+        setPerformers({
+          highest: sorted[0],
+          lowest: sorted[sorted.length - 1]
+        });
+      }
 
     } catch (err) {
       console.error(err);
@@ -102,7 +178,7 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           className="text-display-hero mb-2 tracking-tight"
         >
-          Welcome Back, Nischay
+          Welcome Back, {user?.profile?.display_name?.split(' ')[0] || 'Mentor'}
         </motion.h1>
         <motion.p 
           initial={{ opacity: 0 }}
@@ -186,19 +262,29 @@ export default function Dashboard() {
         >
           <div className="flex items-start justify-between mb-8">
             <div>
-              <p className="text-label text-tertiary mb-2">TODAY'S ATTENDANCE</p>
-              <h2 className="text-display-md tabular-nums">22 <span className="text-h3 text-tertiary">/ 25</span></h2>
+              <p className="text-label text-tertiary mb-2">LATEST SESSION ATTENDANCE</p>
+              <h2 className="text-display-md tabular-nums">{sessionMetrics.present} <span className="text-h3 text-tertiary">/ {sessionMetrics.total}</span></h2>
             </div>
-            <span className="pill pill-success">+ 88%</span>
+            <span className={cn(
+              "pill",
+              sessionMetrics.percentage >= 85 ? "pill-success" : 
+              sessionMetrics.percentage >= 75 ? "pill-warning" : "pill-danger"
+            )}>
+              {sessionMetrics.percentage}%
+            </span>
           </div>
 
           <div className="mb-6">
             <div className="h-2 w-full bg-surface-inset rounded-full overflow-hidden">
               <motion.div 
                 initial={{ width: 0 }}
-                animate={{ width: '88%' }}
+                animate={{ width: `${sessionMetrics.percentage}%` }}
                 transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
-                className="h-full bg-success-fg rounded-full"
+                className={cn(
+                  "h-full rounded-full",
+                  sessionMetrics.percentage >= 85 ? "bg-success" : 
+                  sessionMetrics.percentage >= 75 ? "bg-warning" : "bg-danger"
+                )}
               />
             </div>
           </div>
@@ -237,20 +323,33 @@ export default function Dashboard() {
 
           <div className="h-[120px] w-full -ml-2">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={MOCK_SPARKLINE}>
+              <AreaChart data={trendData.length > 0 ? trendData : MOCK_SPARKLINE}>
                 <defs>
                   <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--success-fg)" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="var(--success-fg)" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="var(--accent-glow)" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="var(--accent-glow)" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <Area 
                   type="monotone" 
                   dataKey="value" 
-                  stroke="var(--success-fg)" 
+                  stroke="var(--accent-glow)" 
                   fillOpacity={1} 
                   fill="url(#colorValue)" 
                   strokeWidth={2}
+                />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-surface-raised border border-subtle p-2 rounded-lg shadow-xl text-caption">
+                          <p className="text-tertiary mb-1">{payload[0].payload.date}</p>
+                          <p className="font-bold text-primary">{payload[0].value}% Attendance</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -259,11 +358,15 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 gap-4 mt-6">
             <div>
               <p className="text-caption text-tertiary">HIGHEST</p>
-              <p className="text-body font-medium">Abhishek Sharma (100%)</p>
+              <p className="text-body font-medium">
+                {performers.highest ? `${performers.highest.name} (${performers.highest.pct}%)` : 'Calculating...'}
+              </p>
             </div>
             <div>
               <p className="text-caption text-tertiary">LOWEST</p>
-              <p className="text-body font-medium">Vikram Joshi (60%)</p>
+              <p className="text-body font-medium">
+                {performers.lowest ? `${performers.lowest.name} (${performers.lowest.pct}%)` : 'Calculating...'}
+              </p>
             </div>
           </div>
         </motion.div>
@@ -282,9 +385,10 @@ export default function Dashboard() {
                 <div className="p-2 rounded-full bg-surface-inset border border-default">
                   <item.icon size={14} className="text-secondary" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-body text-primary">{item.action}</p>
-                  <p className="text-caption text-tertiary">{item.time}</p>
+                  <p className="text-caption text-secondary">{item.detail}</p>
+                  <p className="text-micro text-tertiary mt-1">{item.timeStr}</p>
                 </div>
               </motion.div>
             ))}

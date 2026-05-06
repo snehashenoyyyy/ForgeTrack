@@ -18,6 +18,10 @@ export default {
           default: 'rgba(255,255,255,0.10)',
           strong: 'rgba(255,255,255,0.16)',
         },
+        // Direct shortcuts: text-primary, text-secondary, text-tertiary
+        primary:   '#F5F5F7',
+        secondary: '#8A8A94',
+        tertiary:  '#52525B',
         fg: {
           primary: '#F5F5F7',
           secondary: '#8A8A94',
@@ -26,9 +30,10 @@ export default {
         accent: {
           glow: '#6366F1',
         },
-        success: { DEFAULT: '#10B981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.25)' },
-        danger:  { DEFAULT: '#F43F5E', bg: 'rgba(244,63,94,0.12)',  border: 'rgba(244,63,94,0.25)' },
-        warning: { DEFAULT: '#F59E0B', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)' },
+        success: { DEFAULT: '#10B981', fg: '#10B981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.25)' },
+        danger:  { DEFAULT: '#F43F5E', fg: '#F43F5E', bg: 'rgba(244,63,94,0.12)',  border: 'rgba(244,63,94,0.25)' },
+        warning: { DEFAULT: '#F59E0B', fg: '#F59E0B', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)' },
+        info:    { DEFAULT: '#3B82F6', fg: '#3B82F6', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.25)' },
       },
       fontFamily: {
         display: ['Satoshi', 'Inter', 'system-ui', 'sans-serif'],

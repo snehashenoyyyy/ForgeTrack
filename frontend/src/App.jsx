@@ -13,7 +13,15 @@ import Shell from './components/layout/Shell';
 function RoleGuard({ children }) {
   const { user, loading, role } = useAuth();
   
-  if (loading) return null; // Or a spinner
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: '#07070B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ width: 40, height: 40, border: '3px solid rgba(99,102,241,0.2)', borderTop: '3px solid #6366F1', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+        <p style={{ color: '#8A8A94', fontSize: 14, fontFamily: 'system-ui' }}>Loading ForgeTrack...</p>
+      </div>
+    </div>
+  );
+
   if (!user) return <Navigate to="/login" replace />;
   
   return <Shell>{children}</Shell>;
