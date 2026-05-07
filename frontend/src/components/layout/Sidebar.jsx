@@ -16,7 +16,7 @@ export default function Sidebar() {
       { icon: MessageSquare, text: 'Review Appeals', path: '/appeals' },
       { icon: BookOpen, text: 'Materials', path: '/materials' }
     ]},
-    { label: 'Data', items: [{ icon: Upload, text: 'Upload CSV', path: '/upload' }] },
+    { label: 'Data', items: [{ icon: Upload, text: 'Bulk AI Upload', path: '/bulk-upload' }] },
   ];
 
   const studentLinks = [

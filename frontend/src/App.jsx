@@ -8,6 +8,7 @@ import History from './pages/mentor/History';
 import Materials from './pages/mentor/Materials';
 import AttendanceAppeals from './pages/student/AttendanceAppeals';
 import ReviewAppeals from './pages/mentor/ReviewAppeals';
+import BulkUpload from './pages/mentor/BulkUpload';
 import Shell from './components/layout/Shell';
 
 function RoleGuard({ children }) {
@@ -49,6 +50,7 @@ function App() {
           <Route path="/dashboard" element={<RoleGuard><DashboardSwitcher /></RoleGuard>} />
           
           <Route path="/attendance" element={<RoleGuard><MarkAttendance /></RoleGuard>} />
+          <Route path="/bulk-upload" element={<RoleGuard><BulkUpload /></RoleGuard>} />
           <Route path="/history" element={<RoleGuard><History /></RoleGuard>} />
           <Route path="/materials" element={<RoleGuard><Materials /></RoleGuard>} />
           <Route path="/appeals" element={<RoleGuard><AppealsSwitcher /></RoleGuard>} />

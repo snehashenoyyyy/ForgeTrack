@@ -24,26 +24,39 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
+    // Failsafe: Ensure loading resolves within 5 seconds regardless of network
+    const failsafe = setTimeout(() => {
+      console.warn('Auth loading failsafe triggered');
+      resolveLoading();
+    }, 5000);
+
+    console.time('AuthInitialization');
     // 1. Check existing session on mount
-    checkUser();
+    checkUser().then(() => console.timeEnd('AuthInitialization'));
 
     // 2. Subscribe to future auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log('Auth event:', event);
         try {
           if (session) {
-            let profile = null;
-            try {
-              const { data } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-              profile = data;
-            } catch (_) { /* profile fetch failed, continue without it */ }
-
-            setUser({ ...session.user, profile });
+            // Set user immediately, then fetch profile
+            setUser(prev => ({ ...(prev || {}), ...session.user }));
             setRole('mentor');
+            resolveLoading(); // Resolve loading as soon as we have a session
+
+            // Background profile fetch
+            supabase
+              .from('users')
+              .select('*')
+              .eq('id', session.user.id)
+              .single()
+              .then(({ data }) => {
+                if (data) {
+                  setUser(curr => ({ ...curr, profile: data }));
+                  console.log('Profile loaded successfully');
+                }
+              });
           } else {
             const studentStr = localStorage.getItem('forge_student');
             if (studentStr) {
@@ -59,16 +72,19 @@ export const AuthProvider = ({ children }) => {
               setUser(null);
               setRole(null);
             }
+            resolveLoading();
           }
         } catch (err) {
           console.error('onAuthStateChange error:', err);
-        } finally {
           resolveLoading();
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(failsafe);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const checkUser = async () => {
@@ -108,9 +124,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginMentor = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return data;
+    console.time('LoginRequest');
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      return data;
+    } finally {
+      console.timeEnd('LoginRequest');
+    }
   };
 
   const loginStudent = async (email) => {
