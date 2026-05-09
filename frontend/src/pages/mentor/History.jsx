@@ -38,12 +38,12 @@ export default function History() {
         .select('*', { count: 'exact', head: true });
       setSessionsCount(sCount || 0);
 
-      // 2. Get students and their attendance count
+      // 2. Get students and their attendance count + full pattern
       const { data: studentData, error: sError } = await supabase
         .from('students')
         .select(`
           *,
-          attendance(present)
+          attendance(present, session_id, sessions(date))
         `);
 
       if (sError) throw sError;
@@ -51,9 +51,16 @@ export default function History() {
       const processed = (studentData || []).map(s => {
         const attendanceList = s.attendance || [];
         const attended = attendanceList.filter(a => a.present).length;
+        
+        // Sort attendance by date for the heatmap
+        const pattern = attendanceList
+          .sort((a, b) => new Date(a.sessions?.date) - new Date(b.sessions?.date))
+          .map(a => ({ present: a.present, date: a.sessions?.date }));
+
         return {
           ...s,
           attended,
+          pattern,
           total_possible: sCount,
           percentage: sCount > 0 ? Math.round((attended / sCount) * 100) : 0
         };
@@ -240,24 +247,21 @@ export default function History() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-surface-raised/50 border-b border-subtle">
-              <th 
-                className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider cursor-pointer hover:text-primary transition-colors"
-                onClick={() => handleSort('name')}
-              >
-                <div className="flex items-center gap-2">
+              <th className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider text-left w-[250px]">
+                <div className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('name')}>
                   Student
                   <ArrowUpDown size={14} className={cn("transition-opacity", sortConfig.key === 'name' ? 'opacity-100' : 'opacity-30')} />
                 </div>
               </th>
-              <th className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider">Branch</th>
+              <th className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider w-[120px]">Branch</th>
               <th className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider text-center">Sessions</th>
-              <th 
-                className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider text-right cursor-pointer hover:text-primary transition-colors"
-                onClick={() => handleSort('percentage')}
-              >
-                <div className="flex items-center justify-end gap-2">
-                  Attendance
-                  <ArrowUpDown size={14} className={cn("transition-opacity", sortConfig.key === 'percentage' ? 'opacity-100' : 'opacity-30')} />
+              <th className="px-6 py-4 text-label text-tertiary font-medium uppercase tracking-wider text-right w-[400px]">
+                <div className="flex items-center justify-end gap-4">
+                  <span>Consistency Heatmap</span>
+                  <div className="flex items-center justify-end gap-2 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('percentage')}>
+                    Attendance
+                    <ArrowUpDown size={14} className={cn("transition-opacity", sortConfig.key === 'percentage' ? 'opacity-100' : 'opacity-30')} />
+                  </div>
                 </div>
               </th>
               <th className="px-6 py-4"></th>
@@ -288,29 +292,49 @@ export default function History() {
                 aria-label={`View details for ${student.name}`}
                 className="group hover:bg-surface-raised transition-colors cursor-pointer outline-none focus:bg-surface-raised"
               >
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-surface-inset border border-default flex items-center justify-center text-primary group-hover:border-accent-glow/50 transition-colors">
+                <td className="px-6 py-5">
+                  <div className="flex items-center gap-3 min-w-[220px]">
+                    <div className="w-10 h-10 rounded-full bg-surface-inset border border-default flex items-center justify-center text-primary group-hover:border-accent-glow/50 transition-all duration-300">
                       <User size={18} />
                     </div>
                     <div>
-                      <p className="text-body font-medium">{student.name}</p>
-                      <p className="text-caption text-tertiary font-mono uppercase">{student.usn}</p>
+                      <p className="text-body font-bold text-primary group-hover:text-accent-glow transition-colors">{student.name}</p>
+                      <p className="text-caption text-tertiary font-mono uppercase tracking-tighter">{student.usn}</p>
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                   <span className="pill pill-secondary text-micro">{student.branch_code}</span>
+                <td className="px-6 py-5">
+                   <span className="pill pill-secondary text-[10px] font-black tracking-widest">{student.branch_code}</span>
                 </td>
-                <td className="px-6 py-4 text-center text-body font-mono">
-                  {student.attended} <span className="text-tertiary mx-1">/</span> {sessionsCount}
+                <td className="px-6 py-5 text-center">
+                  <div className="inline-flex flex-col items-center">
+                    <span className="text-body font-mono font-bold">{student.attended}</span>
+                    <span className="text-[10px] text-tertiary font-black uppercase tracking-widest border-t border-subtle pt-1 mt-1">of {sessionsCount}</span>
+                  </div>
                 </td>
-                <td className="px-6 py-4 text-right">
-                  <div className={cn(
-                    "inline-flex items-center px-3 py-1 rounded-full border text-body-sm font-bold tabular-nums",
-                    getStatusColor(student.percentage)
-                  )}>
-                    {student.percentage}%
+                <td className="px-6 py-5">
+                  <div className="flex items-center justify-end gap-6">
+                    {/* Tiny Heatmap */}
+                    <div className="hidden xl:flex gap-1.5 flex-1 max-w-[300px] overflow-hidden justify-end">
+                      {student.pattern.map((p, i) => (
+                        <div 
+                          key={i} 
+                          className={cn(
+                            "w-2.5 h-2.5 rounded-[2px] shrink-0 transition-all hover:scale-150 cursor-help shadow-sm",
+                            p.present ? "bg-success-fg shadow-success-fg/20" : "bg-danger-bg/20"
+                          )}
+                          title={`${p.date}: ${p.present ? 'Present' : 'Absent'}`}
+                        />
+                      ))}
+                    </div>
+                    <div className={cn(
+                      "inline-flex items-center px-4 py-1.5 rounded-xl border-2 text-sm font-black tabular-nums min-w-[72px] justify-center shadow-lg",
+                      getStatusColor(student.percentage),
+                      student.percentage >= 85 ? "shadow-success-bg/10" : 
+                      student.percentage >= 75 ? "shadow-warning-bg/10" : "shadow-danger-bg/10"
+                    )}>
+                      {student.percentage}%
+                    </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 text-right">
@@ -337,6 +361,11 @@ export default function History() {
            <div className="flex gap-4 text-caption font-mono">
               <span className="text-success-fg">Students: {students.length}</span>
               <span className="text-secondary">Sessions: {sessionsCount}</span>
+              {sessionsCount < 55 && (
+                <span className="text-warning-fg animate-pulse">
+                  ⚠️ Note: Only {sessionsCount} sessions found. If you expect 55, please Re-upload your sheet to use the new scanner.
+                </span>
+              )}
            </div>
         </div>
       )}

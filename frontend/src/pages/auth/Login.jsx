@@ -7,7 +7,7 @@ import { cn } from '../../lib/utils';
 
 export default function Login() {
   const [activeTab, setActiveTab] = useState('mentor'); // 'mentor' or 'student'
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -22,11 +22,11 @@ export default function Login() {
 
     try {
       if (activeTab === 'mentor') {
-        await loginMentor(email, password);
+        await loginMentor(username, password);
         navigate('/dashboard');
       } else {
-        await loginStudent(email);
-        navigate('/dashboard'); // Students can see a student dashboard later
+        await loginStudent(username, password);
+        navigate('/dashboard'); 
       }
     } catch (err) {
       setError(err.message || 'Authentication failed');
@@ -100,40 +100,44 @@ export default function Login() {
 
             <div className="space-y-4">
               <div>
-                <label className="text-label text-tertiary block mb-2 uppercase tracking-widest">EMAIL ADDRESS</label>
+                <label className="text-label text-tertiary block mb-2 uppercase tracking-widest">
+                  {activeTab === 'mentor' ? 'EMAIL ADDRESS' : 'USERNAME (USN OR EMAIL)'}
+                </label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-tertiary" size={18} />
+                  {activeTab === 'mentor' ? (
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-tertiary" size={18} />
+                  ) : (
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-tertiary" size={18} />
+                  )}
                   <input 
-                    type="email" 
-                    placeholder="name@organization.com"
+                    type={activeTab === 'mentor' ? 'email' : 'text'} 
+                    placeholder={activeTab === 'mentor' ? 'name@organization.com' : 'Enter USN or Email'}
                     className="input w-full pl-12 h-[52px] input-with-icon"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     required
                   />
                 </div>
               </div>
 
-              {activeTab === 'mentor' && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <label className="text-label text-tertiary block mb-2 uppercase tracking-widest">PASSWORD</label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-tertiary" size={18} />
-                    <input 
-                      type="password" 
-                      placeholder="••••••••"
-                      className="input w-full pl-12 h-[52px] input-with-icon"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required={activeTab === 'mentor'}
-                    />
-                  </div>
-                </motion.div>
-              )}
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <label className="text-label text-tertiary block mb-2 uppercase tracking-widest">PASSWORD</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-tertiary" size={18} />
+                  <input 
+                    type="password" 
+                    placeholder="••••••••"
+                    className="input w-full pl-12 h-[52px] input-with-icon"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </motion.div>
             </div>
 
             <button 

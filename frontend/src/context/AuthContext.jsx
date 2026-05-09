@@ -134,14 +134,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loginStudent = async (email) => {
+  const loginStudent = async (identifier, password) => {
+    if (!identifier || !password) throw new Error('Username and Password are required');
+    if (identifier !== password) throw new Error('Invalid credentials. Password must match Username.');
+
     const { data, error } = await supabase
       .from('students')
       .select('*')
-      .eq('email', email)
-      .single();
+      .or(`usn.eq."${identifier}",email.eq."${identifier}"`)
+      .maybeSingle();
 
-    if (error || !data) throw new Error('Student not found with this email');
+    if (error) throw error;
+    if (!data) throw new Error('Student not found. Please check your USN or Email.');
 
     localStorage.setItem('forge_student', JSON.stringify(data));
     setUser(data);

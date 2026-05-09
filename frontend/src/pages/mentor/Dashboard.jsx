@@ -186,8 +186,22 @@ export default function Dashboard() {
           transition={{ delay: 0.1 }}
           className="text-body-sm text-secondary"
         >
-          Last login: Today at 09:41 AM
+          Manage your students and broadcast important updates.
         </motion.p>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="flex items-center gap-4 mt-6"
+        >
+          <button className="btn-primary px-6 flex items-center gap-2 shadow-glow shadow-accent-glow/20">
+            <Activity size={18} /> Send Announcement
+          </button>
+          <Link to="/attendance" className="btn-secondary px-6 flex items-center gap-2">
+            <CheckSquare size={18} /> Mark Attendance
+          </Link>
+        </motion.div>
       </section>
 
       {/* Ticker Strip */}
@@ -290,20 +304,30 @@ export default function Dashboard() {
           </div>
 
           <div>
-            <p className="text-caption text-secondary mb-3 uppercase tracking-widest">ABSENT STUDENTS</p>
-            <div className="flex flex-wrap gap-2">
-              {absentStudents.length > 0 ? absentStudents.map((student, i) => (
-                <motion.span 
+            <p className="text-caption text-secondary mb-4 uppercase tracking-widest font-bold flex items-center gap-2">
+              <TrendingDown size={14} className="text-danger-fg" /> Recent Absent Students
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {absentStudents.length > 0 ? absentStudents.slice(0, 9).map((student, i) => (
+                <motion.div 
                   key={i} 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.5 + (i * 0.1) }}
-                  className="px-3 py-1.5 rounded-full bg-danger-bg border border-danger-border text-danger-fg text-body-sm"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 + (i * 0.05) }}
+                  className="px-3 py-2 rounded-xl bg-danger-bg/20 border border-danger-border/40 text-danger-fg text-[11px] font-bold truncate flex items-center gap-2"
                 >
+                  <div className="w-1.5 h-1.5 rounded-full bg-danger-fg" />
                   {student}
-                </motion.span>
+                </motion.div>
               )) : (
-                <p className="text-caption text-tertiary italic">No absentees found for this session.</p>
+                <div className="col-span-full p-4 border border-dashed border-subtle rounded-xl text-center">
+                   <p className="text-caption text-tertiary italic">Everyone was present! Amazing consistency.</p>
+                </div>
+              )}
+              {absentStudents.length > 9 && (
+                <div className="px-3 py-2 rounded-xl bg-surface-inset border border-subtle text-tertiary text-[11px] font-bold">
+                  + {absentStudents.length - 9} more
+                </div>
               )}
             </div>
           </div>

@@ -69,6 +69,15 @@ export async function analyzeSpreadsheetHeader(sampleRows) {
 }
 
 /**
+ * Converts Excel serial dates to ISO strings.
+ */
+function excelDateToJSDate(serial) {
+  if (typeof serial !== 'number') return null;
+  const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
+  return date.toISOString().split('T')[0];
+}
+
+/**
  * A local, non-AI fallback that uses regex to guess column mapping.
  */
 function localGreedyScanner(sampleRows) {
@@ -81,6 +90,7 @@ function localGreedyScanner(sampleRows) {
   if (!sampleRows || sampleRows.length === 0) return mapping;
 
   // 1. Find Header Row (Look for USN or Name)
+  let foundHeader = false;
   for (let i = 0; i < Math.min(sampleRows.length, 10); i++) {
     const row = sampleRows[i].map(c => String(c || '').toLowerCase());
     if (row.some(c => c.includes('usn') || c.includes('roll') || c.includes('name') || c.includes('student'))) {
@@ -90,40 +100,66 @@ function localGreedyScanner(sampleRows) {
       const nameIdx = row.findIndex(c => c.includes('name') || c.includes('student'));
       if (usnIdx !== -1) mapping.studentMapping.usn = usnIdx;
       if (nameIdx !== -1) mapping.studentMapping.name = nameIdx;
+      foundHeader = true;
       break;
     }
   }
 
-  // 2. Find Attendance Columns (Look for dates or 'P/A' type data)
+  // 2. Find Attendance Columns
   const headerRow = sampleRows[mapping.headerRowIndex] || [];
+  const contextRow = mapping.headerRowIndex > 0 ? sampleRows[mapping.headerRowIndex - 1] : [];
+
   headerRow.forEach((cell, idx) => {
     const val = String(cell || '').trim();
-    // Check if it looks like a date (DD/MM or similar)
-    const looksLikeDate = /\d{1,2}[\/-]\d{1,2}/.test(val) || val.toLowerCase().includes('day') || val.toLowerCase().includes('sess');
+    const context = String(contextRow[idx] || '').trim();
     
-    // Also check sample data in this column for P/A, 1/0, or TRUE/FALSE
+    // Check if it's an attendance column (Header says "Attendance" or date-like)
+    const isAttendanceHeader = val.toLowerCase().includes('attendance') || val.toLowerCase().includes('present');
+    const looksLikeDate = /\d{1,2}[\/-]\d{1,2}/.test(val) || /\d{4,5}/.test(val); 
+    
     let looksLikeAttendance = false;
-    for (let i = mapping.headerRowIndex + 1; i < Math.min(sampleRows.length, 25); i++) {
-      const sampleCell = String(sampleRows[i][idx] || '').toLowerCase().trim();
-      if (['p', 'a', '1', '0', 'present', 'absent', 'true', 'false', '✔', '✅'].includes(sampleCell)) {
+    for (let i = mapping.headerRowIndex + 1; i < Math.min(sampleRows.length, 30); i++) {
+      const sampleCell = sampleRows[i][idx];
+      if (sampleCell !== '' && sampleCell !== null) {
         looksLikeAttendance = true;
         break;
       }
     }
 
-    if (looksLikeDate || looksLikeAttendance) {
-      // Try to parse date from header
+    const isStudentCol = idx === mapping.studentMapping.usn || idx === mapping.studentMapping.name;
+    
+    if (!isStudentCol && (isAttendanceHeader || looksLikeDate || looksLikeAttendance)) {
+      // Try to parse date from header or context
       let parsedDate = null;
-      const dateMatch = val.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
-      if (dateMatch) {
-        let [_, d, m, y] = dateMatch;
+      
+      // Try header first
+      const headerDateMatch = val.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+      if (headerDateMatch) {
+        let [_, d, m, y] = headerDateMatch;
         if (y.length === 2) y = "20" + y;
         parsedDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      } else if (/^\d{5}$/.test(val)) {
+        parsedDate = excelDateToJSDate(parseInt(val));
       }
+
+      // If no date in header, try context (the row above)
+      if (!parsedDate && context) {
+        const contextDateMatch = context.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+        if (contextDateMatch) {
+          let [_, d, m, y] = contextDateMatch;
+          if (y.length === 2) y = "20" + y;
+          parsedDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+      }
+
+      const finalHeader = (context && val && val.toLowerCase().includes('attend')) 
+        ? `${context} - ${val}` 
+        : (val || context || `Column ${idx}`);
 
       mapping.attendanceColumns.push({
         index: idx,
-        header: val || `Column ${idx}`,
+        header: finalHeader,
+        context: context || null,
         date: parsedDate,
         isAttendance: true
       });
@@ -148,8 +184,13 @@ export async function suggestDateForColumn(columnInfo, usualDays, existingDates)
     Header: "${columnInfo.header}"
     Context: "${columnInfo.context || 'None'}"
     Other dates in sheet: ${existingDates.join(', ')}
-    Class days: ${usualDays.join(', ')}
-    Return ONLY the date string.
+    
+    CRITICAL RULE: Classes ONLY happen on Wednesdays, Thursdays, and Saturdays.
+    
+    Suggest the most likely date for this session:
+    - Pick a date near the existing dates.
+    - The date MUST be a Wednesday, Thursday, or Saturday.
+    - Return ONLY the date string (YYYY-MM-DD).
   `;
 
   try {

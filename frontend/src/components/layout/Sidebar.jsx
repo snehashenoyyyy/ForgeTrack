@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, CheckSquare, History, BookOpen, Upload, Settings, LogOut, CodeSquare, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, History, BookOpen, Upload, Settings, LogOut, CodeSquare, MessageSquare, Calendar, TrendingUp } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
@@ -14,15 +14,20 @@ export default function Sidebar() {
       { icon: CheckSquare, text: 'Mark Attendance', path: '/attendance' },
       { icon: History, text: 'Attendance History', path: '/history' },
       { icon: MessageSquare, text: 'Review Appeals', path: '/appeals' },
-      { icon: BookOpen, text: 'Materials', path: '/materials' }
+      { icon: BookOpen, text: 'Materials', path: '/materials' },
+      { icon: Upload, text: 'Create Assignment', path: '/create-assignment' }
     ]},
     { label: 'Data', items: [{ icon: Upload, text: 'Bulk AI Upload', path: '/bulk-upload' }] },
   ];
 
   const studentLinks = [
-    { label: 'Overview', items: [{ icon: LayoutDashboard, text: 'My Dashboard', path: '/dashboard' }] },
-    { label: 'Academic', items: [
-      { icon: BookOpen, text: 'My Materials', path: '/materials' },
+    { label: 'MY PORTAL', items: [
+      { icon: LayoutDashboard, text: 'Overview', path: '/dashboard' },
+      { icon: CheckSquare, text: 'My Attendance', path: '/dashboard' }, 
+      { icon: Calendar, text: 'Upcoming', path: '/upcoming' },
+      { icon: Upload, text: 'Assignments', path: '/assignments' },
+      { icon: BookOpen, text: 'Materials', path: '/materials' },
+      { icon: History, text: 'Results', path: '/results' },
       { icon: MessageSquare, text: 'Attendance Appeals', path: '/appeals' }
     ]},
   ];
@@ -33,18 +38,22 @@ export default function Sidebar() {
 
   return (
     <aside className="w-[260px] hidden md:flex flex-col border-r border-subtle bg-canvas shrink-0 h-screen sticky top-0 z-20">
-      <div className="p-6 flex items-center gap-3 border-b border-subtle">
-        <div className="bg-accent-glow p-2 rounded-lg text-primary">
-          <CodeSquare size={20} />
+      <div className="p-6 flex flex-col gap-4 border-b border-subtle">
+        <div className="flex items-center gap-3">
+          <div className="bg-accent-glow p-2 rounded-lg text-primary">
+            <CodeSquare size={20} />
+          </div>
+          <span className="text-h2 font-display">ForgeTrack</span>
         </div>
-        <span className="text-h2 font-display">ForgeTrack</span>
+        {role === 'student' && (
+          <div className="inline-flex self-start px-3 py-1 rounded border-2 border-success-fg text-success-fg text-[10px] font-black tracking-widest uppercase">
+            STUDENT
+          </div>
+        )}
       </div>
 
-      <div className="p-6 border-b border-subtle">
-        <p className="text-body-sm text-tertiary">Welcome Back,</p>
-        <p className="text-body font-medium truncate">{userName}</p>
-        <p className="text-micro text-secondary uppercase tracking-widest mt-1 opacity-60">{role}</p>
-      </div>
+      {/* User profile section removed as requested */}
+
       
       {/* ... nav remains same ... */}
       <nav className="flex-1 overflow-y-auto p-4 space-y-6">

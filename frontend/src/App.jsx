@@ -9,7 +9,9 @@ import Materials from './pages/mentor/Materials';
 import AttendanceAppeals from './pages/student/AttendanceAppeals';
 import ReviewAppeals from './pages/mentor/ReviewAppeals';
 import BulkUpload from './pages/mentor/BulkUpload';
+import CreateAssignment from './pages/mentor/CreateAssignment';
 import Shell from './components/layout/Shell';
+import ComingSoon from './pages/student/ComingSoon';
 
 function RoleGuard({ children }) {
   const { user, loading, role } = useAuth();
@@ -51,9 +53,15 @@ function App() {
           
           <Route path="/attendance" element={<RoleGuard><MarkAttendance /></RoleGuard>} />
           <Route path="/bulk-upload" element={<RoleGuard><BulkUpload /></RoleGuard>} />
+          <Route path="/create-assignment" element={<RoleGuard><CreateAssignment /></RoleGuard>} />
           <Route path="/history" element={<RoleGuard><History /></RoleGuard>} />
           <Route path="/materials" element={<RoleGuard><Materials /></RoleGuard>} />
           <Route path="/appeals" element={<RoleGuard><AppealsSwitcher /></RoleGuard>} />
+          
+          {/* New Student Features */}
+          <Route path="/upcoming" element={<RoleGuard><ComingSoon title="Upcoming Classes" /></RoleGuard>} />
+          <Route path="/assignments" element={<RoleGuard><ComingSoon title="Assignments" /></RoleGuard>} />
+          <Route path="/results" element={<RoleGuard><ComingSoon title="Exam Results" /></RoleGuard>} />
           
           {/* Default Redirect */}
           <Route path="*" element={<Navigate to="/dashboard" />} />
