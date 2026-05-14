@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForgeTrack - Project Report</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: var(--surface);
+            border-radius: 16px;
+            padding: 50px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(255,255,255,0.05);
+            color: #e2e8f0;
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            color: var(--primary);
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: var(--text-muted);
+            margin-bottom: 15px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: rgba(15, 23, 42, 0.5);
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        ul {
+            list-style-type: none;
+        }
+
+        ul li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 10px;
+            color: var(--text-muted);
+        }
+
+        ul li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 40px;
+            padding-top: 20px;
+        }
+
+        .meta-item {
+            background: rgba(0,0,0,0.2);
+            padding: 10px 20px;
+            border-radius: 8px;
+        }
+
+        .meta-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .meta-value {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .meta-link {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        
+        .meta-link:hover {
+            text-decoration: underline;
+        }
+
+        @media print {
+            body { background: white; color: black; }
+            .container { box-shadow: none; border: none; padding: 0; }
+            h1, h3 { color: black; }
+            .badge { border-color: black; color: black; }
+            p, ul li { color: #333; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>ForgeTrack</h1>
+    <p style="font-size: 1.2rem; color: #cbd5e1;">Intelligent Attendance & Academic Tracking Platform</p>
+
+    <div class="header-meta">
+        <div class="meta-item">
+            <div class="meta-label">Live Deployment</div>
+            <a href="https://forge-track-five.vercel.app" class="meta-value meta-link" target="_blank">forge-track-five.vercel.app</a>
+        </div>
+        <div class="meta-item">
+            <div class="meta-label">Role Architecture</div>
+            <div class="meta-value">Dual (Mentor & Student)</div>
+        </div>
+    </div>
+
+    <h2>1. Executive Summary</h2>
+    <p>ForgeTrack is a full-stack, AI-augmented academic management platform designed to eliminate the friction of manual attendance tracking. By integrating a sophisticated React frontend with a Supabase PostgreSQL backend, the platform enables mentors to seamlessly upload unstructured spreadsheets, while students benefit from high-visibility performance dashboards.</p>
+
+    <h2>2. Technology Stack</h2>
+    <div>
+        <span class="badge">React 19</span>
+        <span class="badge">Vite</span>
+        <span class="badge">Tailwind CSS</span>
+        <span class="badge">Framer Motion</span>
+        <span class="badge">Supabase (PostgreSQL)</span>
+        <span class="badge">Google Gemini AI API</span>
+        <span class="badge">PapaParse & XLSX</span>
+        <span class="badge">Vercel</span>
+    </div>
+
+    <h2>3. Core Features & Capabilities</h2>
+    
+    <div class="grid">
+        <div class="card">
+            <h3>🤖 AI-Powered Bulk Upload Pipeline</h3>
+            <p>The platform features a highly resilient data ingestion engine. Instead of requiring strict template formats, Mentors can upload raw Excel or CSV files. The system uses the <strong>Google Gemini API</strong> to automatically analyze spreadsheet headers, perform semantic mapping, and dynamically align unstructured data to the database schema.</p>
+        </div>
+
+        <div class="card">
+            <h3>📊 Premium Student Dashboards</h3>
+            <p>Students authenticate using dual-credential logic (USN or Email). Upon logging in, they are greeted by a high-fidelity dashboard featuring a <strong>GitHub-style Attendance Heatmap</strong> spanning the entire semester, assignment rank tracking, and visual attendance percentage rings.</p>
+        </div>
+
+        <div class="card">
+            <h3>🛡️ "Nuclear" Data Synchronization</h3>
+            <p>To prevent database collisions and corrupted session counts during re-uploads, the platform employs a "Clean Slate" atomic transaction model. Every bulk import securely wipes and replaces the affected cohort's history, perfectly mirroring the uploaded file to guarantee 100% data integrity.</p>
+        </div>
+
+        <div class="card">
+            <h3>🔐 Role-Based Access Control (RBAC)</h3>
+            <p>The application implements strict client-side and database-level security. Mentors and Students are routed to entirely different application shells (Command Center vs. Academic Portal) with tailored navigation components and Supabase Row Level Security (RLS) policies protecting the data layer.</p>
+        </div>
+    </div>
+
+    <h2>4. Architectural Highlights</h2>
+    <ul>
+        <li><strong>Responsive Design:</strong> Fully fluid UI scaling across desktop and mobile devices using Tailwind utility classes.</li>
+        <li><strong>Micro-Animations:</strong> Utilized Framer Motion for layout transitions, hover states, and smooth data rendering.</li>
+        <li><strong>Dynamic Grid Logic:</strong> Custom algorithms to map abstract class dates (e.g., Wed/Thu/Sat schedules) into perfectly aligned, chronological visual heatmaps.</li>
+        <li><strong>Asynchronous State Management:</strong> Robust handling of API limits and loading states during AI analysis and batch database upserts.</li>
+    </ul>
+
+    <h2>5. Deployment Overview</h2>
+    <p>The frontend application is compiled via Vite and deployed globally on Vercel's Edge Network for sub-second delivery. The backend operates on a dedicated Supabase instance with a normalized relational database schema (Students, Sessions, Attendance, Materials).</p>
+
+</div>
+
+</body>
+</html>

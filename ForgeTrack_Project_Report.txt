@@ -1,0 +1,52 @@
+FORGETRACK - PROJECT REPORT
+===========================
+Intelligent Attendance & Academic Tracking Platform
+
+LIVE DEPLOYMENT LINK:
+https://forge-track-five.vercel.app
+
+ROLE ARCHITECTURE:
+Dual-Role System (Mentor & Student)
+
+--------------------------------------------------
+1. EXECUTIVE SUMMARY
+--------------------------------------------------
+ForgeTrack is a full-stack, AI-augmented academic management platform designed to eliminate the friction of manual attendance tracking. By integrating a sophisticated React frontend with a Supabase PostgreSQL backend, the platform enables mentors to seamlessly upload unstructured spreadsheets, while students benefit from high-visibility performance dashboards.
+
+--------------------------------------------------
+2. TECHNOLOGY STACK
+--------------------------------------------------
+- Frontend: React 19, Vite
+- Styling & UI: Tailwind CSS, Framer Motion
+- Backend & Database: Supabase (PostgreSQL)
+- Artificial Intelligence: Google Gemini API
+- Data Processing: PapaParse, XLSX
+- Hosting & Deployment: Vercel
+
+--------------------------------------------------
+3. CORE FEATURES & CAPABILITIES
+--------------------------------------------------
+[+] AI-Powered Bulk Upload Pipeline
+The platform features a highly resilient data ingestion engine. Instead of requiring strict template formats, Mentors can upload raw Excel or CSV files. The system uses the Google Gemini API to automatically analyze spreadsheet headers, perform semantic mapping, and dynamically align unstructured data to the database schema.
+
+[+] Premium Student Dashboards
+Students authenticate using dual-credential logic (USN or Email). Upon logging in, they are greeted by a high-fidelity dashboard featuring a GitHub-style Attendance Heatmap spanning the entire semester, assignment rank tracking, and visual attendance percentage rings.
+
+[+] "Nuclear" Data Synchronization
+To prevent database collisions and corrupted session counts during re-uploads, the platform employs a "Clean Slate" atomic transaction model. Every bulk import securely wipes and replaces the affected cohort's history, perfectly mirroring the uploaded file to guarantee 100% data integrity.
+
+[+] Role-Based Access Control (RBAC)
+The application implements strict client-side and database-level security. Mentors and Students are routed to entirely different application shells (Command Center vs. Academic Portal) with tailored navigation components and Supabase Row Level Security (RLS) policies protecting the data layer.
+
+--------------------------------------------------
+4. ARCHITECTURAL HIGHLIGHTS
+--------------------------------------------------
+- Responsive Design: Fully fluid UI scaling across desktop and mobile devices.
+- Micro-Animations: Utilized Framer Motion for layout transitions and hover states.
+- Dynamic Grid Logic: Custom algorithms to map abstract class dates (Wed/Thu/Sat) into perfectly aligned, chronological visual heatmaps.
+- Asynchronous State Management: Robust handling of API limits and loading states during AI analysis and batch database upserts.
+
+--------------------------------------------------
+5. DEPLOYMENT OVERVIEW
+--------------------------------------------------
+The frontend application is compiled via Vite and deployed globally on Vercel's Edge Network for sub-second delivery. The backend operates on a dedicated Supabase instance with a normalized relational database schema governing Students, Sessions, Attendance, and Materials.
